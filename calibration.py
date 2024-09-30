@@ -3,8 +3,10 @@ import cv2 as cv
 import glob
 import pickle
 
-chessboardSize = (14,10)
-frameSize = (3648,5472)
+chessboardSize = (8,6)
+# frameSize = (3648,5472)
+frameSize = (3648//3,5472//3)
+
 
 
 criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -20,8 +22,12 @@ imgpoints = []
 
 def calibMatrix(images,cameName):
     workT = False
+    idx = 0
     for image in images:
+        print(f"Adim: {idx}")
+        idx+= 1
         img = cv.imread(image)
+        img = cv.resize(img,(3648//3,5472//3))
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
         ret, corners = cv.findChessboardCorners(gray, chessboardSize, None)
@@ -46,11 +52,42 @@ def calibMatrix(images,cameName):
     pickle.dump(dist, open(f"calibMatrix_{cameName}_dist.pkl", "wb" ))
 
 
+    img = cv.imread(images[1])
+    h,  w = img.shape[:2]
+    newCameraMatrix, roi = cv.getOptimalNewCameraMatrix(cameraMatrix, dist, (w,h), 1, (w,h))
+
+    dst = cv.undistort(img, cameraMatrix, dist, None, newCameraMatrix)
+
+    x, y, w, h = roi
+    dst = dst[y:y+h, x:x+w]
+    cv.imwrite(f'calibMatrix_{cameName}_caliResult1.png', dst)
+
+    mapx, mapy = cv.initUndistortRectifyMap(cameraMatrix, dist, None, newCameraMatrix, (w,h), 5)
+    dst = cv.remap(img, mapx, mapy, cv.INTER_LINEAR)
+
+    x, y, w, h = roi
+    dst = dst[y:y+h, x:x+w]
+    cv.imwrite(f'calibMatrix_{cameName}_caliResult2.png', dst)
+
+    mean_error = 0
+
+    for i in range(len(objpoints)):
+        imgpoints2, _ = cv.projectPoints(objpoints[i], rvecs[i], tvecs[i], cameraMatrix, dist)
+        error = cv.norm(imgpoints[i], imgpoints2, cv.NORM_L2)/len(imgpoints2)
+        mean_error += error
+
+    print( "total error: {}".format(mean_error/len(objpoints)) )
+
+
 images1 = glob.glob('images/camera1/**')
 images2 = glob.glob("images/camera2/**")
 
 calibMatrix(images1,"camera1")
-calibMatrix(images2,"camera2")
+# calibMatrix(images2,"camera2")
+
+
+# def calibImages():
+    
 
 
 # for image in images:
