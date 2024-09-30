@@ -7,6 +7,11 @@ __pycache__/
 *.so
 /imageCalib/
 /images/
+/calibMatrix/
+/CameraCalib/
+den.py
+den2.py
+den3.py
 # Distribution / packaging
 .Python
 build/
